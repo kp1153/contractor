@@ -1,25 +1,27 @@
- // app/sites/[id]/SiteClient.js
+// app/sites/[id]/SiteClient.js
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import jsPDF from "jspdf";
 
-export default function SiteClient({ site, workers, attendance, expenses, invoices, siteId }) {
+export default function SiteClient({ site, workers, attendance, expenses, invoices, materials, siteId }) {
   const router = useRouter();
   const [tab, setTab] = useState("attendance");
-
   const [workerId, setWorkerId] = useState("");
   const [attDate, setAttDate] = useState("");
   const [attStatus, setAttStatus] = useState("full");
-
   const [expCategory, setExpCategory] = useState("");
   const [expAmount, setExpAmount] = useState("");
   const [expNote, setExpNote] = useState("");
   const [expDate, setExpDate] = useState("");
-
   const [invAmount, setInvAmount] = useState("");
   const [invGst, setInvGst] = useState("");
   const [invDate, setInvDate] = useState("");
+  const [matName, setMatName] = useState("");
+  const [matQty, setMatQty] = useState("");
+  const [matUnit, setMatUnit] = useState("");
+  const [matNote, setMatNote] = useState("");
+  const [matDate, setMatDate] = useState("");
 
   async function handleAttendance(e) {
     e.preventDefault();
@@ -51,11 +53,21 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
     router.refresh();
   }
 
+  async function handleMaterial(e) {
+    e.preventDefault();
+    await fetch("/api/materials", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ site_id: siteId, name: matName, quantity: matQty, unit: matUnit, note: matNote, date: matDate }),
+    });
+    router.refresh();
+    setMatName(""); setMatQty(""); setMatUnit(""); setMatNote(""); setMatDate("");
+  }
+
   function downloadInvoicePDF(inv) {
     const doc = new jsPDF();
     const gstAmount = (inv.amount * inv.gst) / 100;
     const total = inv.amount + gstAmount;
-
     doc.setFontSize(20);
     doc.text("INVOICE", 105, 20, { align: "center" });
     doc.setFontSize(12);
@@ -109,7 +121,6 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      {/* Navbar */}
       <nav className="border-b border-zinc-800 px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-orange-500 rounded flex items-center justify-center font-black text-black text-sm">C</div>
@@ -122,13 +133,28 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
       </nav>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
-        {/* Site Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-black">{site.name}</h1>
-          <p className="text-zinc-500 mt-1">Client: {site.client_name || "N/A"}</p>
+
+        <div className="mb-6 flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-black">{site.name}</h1>
+            <p className="text-zinc-500 mt-1">Client: {site.client_name || "N/A"}</p>
+          </div>
+          <select defaultValue={site.status}
+            onChange={async (e) => {
+              await fetch(`/api/sites/${siteId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: e.target.value }),
+              });
+              router.refresh();
+            }}
+            className="px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:outline-none focus:border-orange-500 text-sm font-bold">
+            <option value="active">🟢 Active</option>
+            <option value="completed">✅ Completed</option>
+            <option value="on_hold">⏸️ On Hold</option>
+          </select>
         </div>
 
-        {/* Summary */}
         <div className="grid grid-cols-2 gap-4 mb-8">
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
             <p className="text-zinc-500 text-xs uppercase tracking-widest mb-1">Total Invoiced</p>
@@ -140,9 +166,8 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6 border-b border-zinc-800 pb-4">
-          {["attendance", "expenses", "invoices", "wages"].map((t) => (
+        <div className="flex gap-2 mb-6 border-b border-zinc-800 pb-4 flex-wrap">
+          {["attendance", "expenses", "invoices", "wages", "materials"].map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition-colors ${
                 tab === t ? "bg-orange-500 text-black" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
@@ -152,7 +177,6 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
           ))}
         </div>
 
-        {/* Attendance Tab */}
         {tab === "attendance" && (
           <div>
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-6">
@@ -187,7 +211,6 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
           </div>
         )}
 
-        {/* Expenses Tab */}
         {tab === "expenses" && (
           <div>
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-6">
@@ -220,7 +243,6 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
           </div>
         )}
 
-        {/* Invoices Tab */}
         {tab === "invoices" && (
           <div>
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-6">
@@ -260,7 +282,6 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
           </div>
         )}
 
-        {/* Wages Tab */}
         {tab === "wages" && (
           <div>
             <h2 className="font-bold text-zinc-300 mb-4">Wages Calculator</h2>
@@ -296,6 +317,42 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
             )}
           </div>
         )}
+
+        {tab === "materials" && (
+          <div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-6">
+              <h2 className="font-bold text-zinc-300 mb-4">Add Material</h2>
+              <input type="text" placeholder="Material Name (Cement, Sand...)" value={matName}
+                onChange={(e) => setMatName(e.target.value)} className={inputClass} />
+              <input type="number" placeholder="Quantity" value={matQty}
+                onChange={(e) => setMatQty(e.target.value)} className={inputClass} />
+              <input type="text" placeholder="Unit (bags, kg, cft...)" value={matUnit}
+                onChange={(e) => setMatUnit(e.target.value)} className={inputClass} />
+              <input type="text" placeholder="Note" value={matNote}
+                onChange={(e) => setMatNote(e.target.value)} className={inputClass} />
+              <input type="date" value={matDate}
+                onChange={(e) => setMatDate(e.target.value)} className={inputClass} />
+              <button onClick={handleMaterial} className={saveBtn}>Save</button>
+            </div>
+            <h2 className="font-bold text-zinc-300 mb-3">Stock Records</h2>
+            {materials.length === 0 && <p className="text-zinc-600">No materials yet.</p>}
+            <div className="grid gap-2">
+              {materials.map((m) => (
+                <div key={m.id} className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 flex justify-between items-center">
+                  <div>
+                    <p className="font-medium">{m.name}</p>
+                    {m.note && <p className="text-zinc-500 text-sm">{m.note}</p>}
+                  </div>
+                  <div className="text-right">
+                    <p className="font-black text-orange-400">{m.quantity} {m.unit}</p>
+                    <p className="text-zinc-500 text-sm">{m.date}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

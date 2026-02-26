@@ -75,14 +75,28 @@ export default async function SitePage({ params }) {
     status: String(row.status),
     date: String(row.date),
   }));
+  const materialsResult = await client.execute({
+    sql: "SELECT * FROM materials WHERE site_id = ? ORDER BY date DESC",
+    args: [id],
+  });
 
-  return (
+  const materials = materialsResult.rows.map((row) => ({
+    id: Number(row.id),
+    name: String(row.name),
+    quantity: Number(row.quantity),
+    unit: String(row.unit),
+    note: row.note ? String(row.note) : null,
+    date: String(row.date),
+  }));
+
+return (
     <SiteClient
       site={site}
       workers={workers}
       attendance={attendance}
       expenses={expenses}
       invoices={invoices}
+      materials={materials}
       siteId={id}
     />
   );
