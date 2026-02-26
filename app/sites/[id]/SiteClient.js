@@ -64,6 +64,22 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
     setMatName(""); setMatQty(""); setMatUnit(""); setMatNote(""); setMatDate("");
   }
 
+  async function toggleInvoiceStatus(inv) {
+    const newStatus = inv.status === "paid" ? "unpaid" : "paid";
+    await fetch(`/api/invoices/${inv.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    router.refresh();
+  }
+
+  async function deleteRecord(type, id) {
+    if (!confirm("Delete this record?")) return;
+    await fetch(`/api/${type}/${id}`, { method: "DELETE" });
+    router.refresh();
+  }
+
   function downloadInvoicePDF(inv) {
     const doc = new jsPDF();
     const gstAmount = (inv.amount * inv.gst) / 100;
@@ -118,6 +134,7 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
   const inputClass = "block w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-orange-500 mb-3";
   const selectClass = "block w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:outline-none focus:border-orange-500 mb-3";
   const saveBtn = "px-6 py-2 bg-orange-500 hover:bg-orange-600 text-black rounded-lg font-bold transition-colors";
+  const deleteBtn = "px-3 py-1 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded-lg text-xs font-bold transition-colors";
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -128,12 +145,11 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
         </div>
         <button onClick={() => router.push("/dashboard")}
           className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 rounded-lg text-sm font-medium transition-colors">
-          ← Dashboard
+          &larr; Dashboard
         </button>
       </nav>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
-
         <div className="mb-6 flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-black">{site.name}</h1>
@@ -149,20 +165,20 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
               router.refresh();
             }}
             className="px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:outline-none focus:border-orange-500 text-sm font-bold">
-            <option value="active">🟢 Active</option>
-            <option value="completed">✅ Completed</option>
-            <option value="on_hold">⏸️ On Hold</option>
+            <option value="active">Active</option>
+            <option value="completed">Completed</option>
+            <option value="on_hold">On Hold</option>
           </select>
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-8">
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
             <p className="text-zinc-500 text-xs uppercase tracking-widest mb-1">Total Invoiced</p>
-            <p className="text-2xl font-black text-orange-400">₹{totalInvoiced.toLocaleString()}</p>
+            <p className="text-2xl font-black text-orange-400">&#8377;{totalInvoiced.toLocaleString()}</p>
           </div>
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
             <p className="text-zinc-500 text-xs uppercase tracking-widest mb-1">Total Expenses</p>
-            <p className="text-2xl font-black text-red-400">₹{totalExpenses.toLocaleString()}</p>
+            <p className="text-2xl font-black text-red-400">&#8377;{totalExpenses.toLocaleString()}</p>
           </div>
         </div>
 
@@ -205,6 +221,7 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
                     a.status === "half" ? "bg-yellow-500/20 text-yellow-400" :
                     "bg-red-500/20 text-red-400"
                   }`}>{a.status}</span>
+                  <button onClick={() => deleteRecord("attendance", a.id)} className={deleteBtn}>Delete</button>
                 </div>
               ))}
             </div>
@@ -234,9 +251,10 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
                     {e.note && <p className="text-zinc-500 text-sm">{e.note}</p>}
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-red-400">₹{e.amount.toLocaleString()}</p>
+                    <p className="font-bold text-red-400">&#8377;{e.amount.toLocaleString()}</p>
                     <p className="text-zinc-500 text-sm">{e.date}</p>
                   </div>
+                  <button onClick={() => deleteRecord("expenses", e.id)} className={deleteBtn}>Delete</button>
                 </div>
               ))}
             </div>
@@ -260,13 +278,14 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
               {invoices.map((inv) => (
                 <div key={inv.id} className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 flex justify-between items-center">
                   <div>
-                    <p className="font-bold text-orange-400">₹{inv.amount.toLocaleString()}</p>
-                    <p className="text-zinc-500 text-sm">GST {inv.gst}% — {inv.date}</p>
+                    <p className="font-bold text-orange-400">&#8377;{inv.amount.toLocaleString()}</p>
+                    <p className="text-zinc-500 text-sm">GST {inv.gst}% - {inv.date}</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
-                      inv.status === "paid" ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
-                    }`}>{inv.status}</span>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => toggleInvoiceStatus(inv)}
+                      className={`px-3 py-1 rounded-full text-xs font-bold uppercase transition-colors ${
+                        inv.status === "paid" ? "bg-green-500/20 text-green-400 hover:bg-green-500/40" : "bg-red-500/20 text-red-400 hover:bg-red-500/40"
+                      }`}>{inv.status}</button>
                     <button onClick={() => downloadInvoicePDF(inv)}
                       className="px-3 py-1 bg-zinc-700 hover:bg-zinc-600 text-zinc-100 rounded-lg text-xs font-bold transition-colors">
                       PDF
@@ -275,6 +294,7 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
                       className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-colors">
                       WhatsApp
                     </button>
+                    <button onClick={() => deleteRecord("invoices", inv.id)} className={deleteBtn}>Delete</button>
                   </div>
                 </div>
               ))}
@@ -295,8 +315,8 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
                       { label: "Full Days", value: w.full, color: "text-green-400" },
                       { label: "Half Days", value: w.half, color: "text-yellow-400" },
                       { label: "Absent", value: w.absent, color: "text-red-400" },
-                      { label: "Daily Rate", value: `₹${w.daily_rate}`, color: "text-zinc-300" },
-                      { label: "Total Wages", value: `₹${w.total.toLocaleString()}`, color: "text-orange-400" },
+                      { label: "Daily Rate", value: `&#8377;${w.daily_rate}`, color: "text-zinc-300" },
+                      { label: "Total Wages", value: `&#8377;${w.total.toLocaleString()}`, color: "text-orange-400" },
                     ].map((item) => (
                       <div key={item.label}>
                         <p className="text-zinc-600 text-xs uppercase tracking-wide mb-1">{item.label}</p>
@@ -311,7 +331,7 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
               <div className="bg-zinc-900 border border-orange-500/30 rounded-xl p-5 mt-4">
                 <p className="text-zinc-500 text-xs uppercase tracking-widest mb-1">Total Wages Payable</p>
                 <p className="text-3xl font-black text-orange-400">
-                  ₹{wagesList.reduce((sum, w) => sum + w.total, 0).toLocaleString()}
+                  &#8377;{wagesList.reduce((sum, w) => sum + w.total, 0).toLocaleString()}
                 </p>
               </div>
             )}
@@ -347,12 +367,12 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
                     <p className="font-black text-orange-400">{m.quantity} {m.unit}</p>
                     <p className="text-zinc-500 text-sm">{m.date}</p>
                   </div>
+                  <button onClick={() => deleteRecord("materials", m.id)} className={deleteBtn}>Delete</button>
                 </div>
               ))}
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
