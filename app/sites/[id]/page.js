@@ -1,4 +1,4 @@
- // app/sites/[id]/page.js
+// app/sites/[id]/page.js
 import { auth } from "@/lib/auth";
 import { client, initDB } from "@/lib/db";
 import { redirect } from "next/navigation";
@@ -15,7 +15,6 @@ export default async function SitePage({ params }) {
     sql: "SELECT * FROM sites WHERE id = ? AND user_id = ?",
     args: [id, String(session.user.id)],
   });
-
   if (siteResult.rows.length === 0) redirect("/dashboard");
 
   const site = {
@@ -29,7 +28,6 @@ export default async function SitePage({ params }) {
     sql: "SELECT * FROM workers WHERE user_id = ?",
     args: [String(session.user.id)],
   });
-
   const workers = workersResult.rows.map((row) => ({
     id: Number(row.id),
     name: String(row.name),
@@ -38,14 +36,14 @@ export default async function SitePage({ params }) {
   }));
 
   const attendanceResult = await client.execute({
-    sql: "SELECT a.*, w.name as worker_name FROM attendance a JOIN workers w ON a.worker_id = w.id WHERE a.site_id = ? ORDER BY a.date DESC",
+    sql: "SELECT a.*, w.name as worker_name, w.daily_rate FROM attendance a JOIN workers w ON a.worker_id = w.id WHERE a.site_id = ? ORDER BY a.date DESC",
     args: [id],
   });
-
   const attendance = attendanceResult.rows.map((row) => ({
     id: Number(row.id),
     worker_id: Number(row.worker_id),
     worker_name: String(row.worker_name),
+    daily_rate: Number(row.daily_rate),
     date: String(row.date),
     status: String(row.status),
   }));
@@ -54,7 +52,6 @@ export default async function SitePage({ params }) {
     sql: "SELECT * FROM expenses WHERE site_id = ? ORDER BY date DESC",
     args: [id],
   });
-
   const expenses = expensesResult.rows.map((row) => ({
     id: Number(row.id),
     category: row.category ? String(row.category) : null,
@@ -67,7 +64,6 @@ export default async function SitePage({ params }) {
     sql: "SELECT * FROM invoices WHERE site_id = ? ORDER BY date DESC",
     args: [id],
   });
-
   const invoices = invoicesResult.rows.map((row) => ({
     id: Number(row.id),
     amount: Number(row.amount),
@@ -75,21 +71,35 @@ export default async function SitePage({ params }) {
     status: String(row.status),
     date: String(row.date),
   }));
+
   const materialsResult = await client.execute({
     sql: "SELECT * FROM materials WHERE site_id = ? ORDER BY date DESC",
     args: [id],
   });
-
   const materials = materialsResult.rows.map((row) => ({
     id: Number(row.id),
     name: String(row.name),
     quantity: Number(row.quantity),
     unit: String(row.unit),
+    rate: Number(row.rate || 0),
+    total_cost: Number(row.total_cost || 0),
     note: row.note ? String(row.note) : null,
     date: String(row.date),
   }));
 
-return (
+  const paymentsResult = await client.execute({
+    sql: "SELECT * FROM payments WHERE site_id = ? ORDER BY date DESC",
+    args: [id],
+  });
+  const payments = paymentsResult.rows.map((row) => ({
+    id: Number(row.id),
+    amount: Number(row.amount),
+    mode: String(row.mode),
+    note: row.note ? String(row.note) : null,
+    date: String(row.date),
+  }));
+
+  return (
     <SiteClient
       site={site}
       workers={workers}
@@ -97,6 +107,7 @@ return (
       expenses={expenses}
       invoices={invoices}
       materials={materials}
+      payments={payments}
       siteId={id}
     />
   );

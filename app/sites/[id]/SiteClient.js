@@ -1,10 +1,9 @@
-// app/sites/[id]/SiteClient.js
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import jsPDF from "jspdf";
 
-export default function SiteClient({ site, workers, attendance, expenses, invoices, materials, siteId }) {
+export default function SiteClient({ site, workers, attendance, expenses, invoices, materials, payments, siteId }) {
   const router = useRouter();
   const [tab, setTab] = useState("attendance");
   const [workerId, setWorkerId] = useState("");
@@ -20,8 +19,13 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
   const [matName, setMatName] = useState("");
   const [matQty, setMatQty] = useState("");
   const [matUnit, setMatUnit] = useState("");
+  const [matRate, setMatRate] = useState("");
   const [matNote, setMatNote] = useState("");
   const [matDate, setMatDate] = useState("");
+  const [payAmount, setPayAmount] = useState("");
+  const [payMode, setPayMode] = useState("cash");
+  const [payNote, setPayNote] = useState("");
+  const [payDate, setPayDate] = useState("");
 
   async function handleAttendance(e) {
     e.preventDefault();
@@ -58,10 +62,21 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
     await fetch("/api/materials", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ site_id: siteId, name: matName, quantity: matQty, unit: matUnit, note: matNote, date: matDate }),
+      body: JSON.stringify({ site_id: siteId, name: matName, quantity: matQty, unit: matUnit, rate: matRate, note: matNote, date: matDate }),
     });
     router.refresh();
-    setMatName(""); setMatQty(""); setMatUnit(""); setMatNote(""); setMatDate("");
+    setMatName(""); setMatQty(""); setMatUnit(""); setMatRate(""); setMatNote(""); setMatDate("");
+  }
+
+  async function handlePayment(e) {
+    e.preventDefault();
+    await fetch("/api/payments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ site_id: siteId, amount: payAmount, mode: payMode, note: payNote, date: payDate }),
+    });
+    router.refresh();
+    setPayAmount(""); setPayMode("cash"); setPayNote(""); setPayDate("");
   }
 
   async function toggleInvoiceStatus(inv) {
@@ -130,6 +145,8 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
 
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
   const totalInvoiced = invoices.reduce((sum, i) => sum + i.amount, 0);
+  const totalReceived = (payments || []).reduce((sum, p) => sum + p.amount, 0);
+  const totalPending = totalInvoiced - totalReceived;
 
   const inputClass = "block w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-orange-500 mb-3";
   const selectClass = "block w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:outline-none focus:border-orange-500 mb-3";
@@ -171,7 +188,7 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
           </select>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-4 gap-4 mb-8">
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
             <p className="text-zinc-500 text-xs uppercase tracking-widest mb-1">Total Invoiced</p>
             <p className="text-2xl font-black text-orange-400">&#8377;{totalInvoiced.toLocaleString()}</p>
@@ -180,10 +197,18 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
             <p className="text-zinc-500 text-xs uppercase tracking-widest mb-1">Total Expenses</p>
             <p className="text-2xl font-black text-red-400">&#8377;{totalExpenses.toLocaleString()}</p>
           </div>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+            <p className="text-zinc-500 text-xs uppercase tracking-widest mb-1">Received</p>
+            <p className="text-2xl font-black text-green-400">&#8377;{totalReceived.toLocaleString()}</p>
+          </div>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+            <p className="text-zinc-500 text-xs uppercase tracking-widest mb-1">Pending</p>
+            <p className={`text-2xl font-black ${totalPending > 0 ? "text-yellow-400" : "text-green-400"}`}>&#8377;{totalPending.toLocaleString()}</p>
+          </div>
         </div>
 
         <div className="flex gap-2 mb-6 border-b border-zinc-800 pb-4 flex-wrap">
-          {["attendance", "expenses", "invoices", "wages", "materials"].map((t) => (
+          {["attendance", "expenses", "invoices", "wages", "materials", "payments"].map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition-colors ${
                 tab === t ? "bg-orange-500 text-black" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
@@ -287,13 +312,9 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
                         inv.status === "paid" ? "bg-green-500/20 text-green-400 hover:bg-green-500/40" : "bg-red-500/20 text-red-400 hover:bg-red-500/40"
                       }`}>{inv.status}</button>
                     <button onClick={() => downloadInvoicePDF(inv)}
-                      className="px-3 py-1 bg-zinc-700 hover:bg-zinc-600 text-zinc-100 rounded-lg text-xs font-bold transition-colors">
-                      PDF
-                    </button>
+                      className="px-3 py-1 bg-zinc-700 hover:bg-zinc-600 text-zinc-100 rounded-lg text-xs font-bold transition-colors">PDF</button>
                     <button onClick={() => shareOnWhatsApp(inv)}
-                      className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-colors">
-                      WhatsApp
-                    </button>
+                      className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-colors">WhatsApp</button>
                     <button onClick={() => deleteRecord("invoices", inv.id)} className={deleteBtn}>Delete</button>
                   </div>
                 </div>
@@ -315,8 +336,8 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
                       { label: "Full Days", value: w.full, color: "text-green-400" },
                       { label: "Half Days", value: w.half, color: "text-yellow-400" },
                       { label: "Absent", value: w.absent, color: "text-red-400" },
-                      { label: "Daily Rate", value: `&#8377;${w.daily_rate}`, color: "text-zinc-300" },
-                      { label: "Total Wages", value: `&#8377;${w.total.toLocaleString()}`, color: "text-orange-400" },
+                      { label: "Daily Rate", value: `₹${w.daily_rate}`, color: "text-zinc-300" },
+                      { label: "Total Wages", value: `₹${w.total.toLocaleString()}`, color: "text-orange-400" },
                     ].map((item) => (
                       <div key={item.label}>
                         <p className="text-zinc-600 text-xs uppercase tracking-wide mb-1">{item.label}</p>
@@ -348,6 +369,8 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
                 onChange={(e) => setMatQty(e.target.value)} className={inputClass} />
               <input type="text" placeholder="Unit (bags, kg, cft...)" value={matUnit}
                 onChange={(e) => setMatUnit(e.target.value)} className={inputClass} />
+              <input type="number" placeholder="Rate per unit (₹)" value={matRate}
+                onChange={(e) => setMatRate(e.target.value)} className={inputClass} />
               <input type="text" placeholder="Note" value={matNote}
                 onChange={(e) => setMatNote(e.target.value)} className={inputClass} />
               <input type="date" value={matDate}
@@ -365,9 +388,64 @@ export default function SiteClient({ site, workers, attendance, expenses, invoic
                   </div>
                   <div className="text-right">
                     <p className="font-black text-orange-400">{m.quantity} {m.unit}</p>
+                    {m.rate > 0 && <p className="text-green-400 text-sm font-bold">&#8377;{(m.total_cost || 0).toLocaleString()}</p>}
                     <p className="text-zinc-500 text-sm">{m.date}</p>
                   </div>
                   <button onClick={() => deleteRecord("materials", m.id)} className={deleteBtn}>Delete</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {tab === "payments" && (
+          <div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-6">
+              <h2 className="font-bold text-zinc-300 mb-4">Payment Received</h2>
+              <input type="number" placeholder="Amount (₹)" value={payAmount}
+                onChange={(e) => setPayAmount(e.target.value)} className={inputClass} />
+              <select value={payMode} onChange={(e) => setPayMode(e.target.value)} className={selectClass}>
+                <option value="cash">Cash</option>
+                <option value="upi">UPI</option>
+                <option value="cheque">Cheque</option>
+                <option value="bank">Bank Transfer</option>
+              </select>
+              <input type="text" placeholder="Note" value={payNote}
+                onChange={(e) => setPayNote(e.target.value)} className={inputClass} />
+              <input type="date" value={payDate}
+                onChange={(e) => setPayDate(e.target.value)} className={inputClass} />
+              <button onClick={handlePayment} className={saveBtn}>Save</button>
+            </div>
+            <div className="bg-zinc-900 border border-orange-500/30 rounded-xl p-5 mb-6">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-zinc-500 text-xs uppercase tracking-widest mb-1">Total Invoiced</p>
+                  <p className="text-xl font-black text-orange-400">&#8377;{totalInvoiced.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-zinc-500 text-xs uppercase tracking-widest mb-1">Received</p>
+                  <p className="text-xl font-black text-green-400">&#8377;{totalReceived.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-zinc-500 text-xs uppercase tracking-widest mb-1">Pending</p>
+                  <p className={`text-xl font-black ${totalPending > 0 ? "text-yellow-400" : "text-green-400"}`}>&#8377;{totalPending.toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+            <h2 className="font-bold text-zinc-300 mb-3">Payment Records</h2>
+            {(payments || []).length === 0 && <p className="text-zinc-600">No payments yet.</p>}
+            <div className="grid gap-2">
+              {(payments || []).map((p) => (
+                <div key={p.id} className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 flex justify-between items-center">
+                  <div>
+                    <p className="font-black text-green-400 text-lg">&#8377;{p.amount.toLocaleString()}</p>
+                    {p.note && <p className="text-zinc-500 text-sm">{p.note}</p>}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-zinc-300 text-sm font-bold uppercase">{p.mode}</p>
+                    <p className="text-zinc-500 text-sm">{p.date}</p>
+                  </div>
+                  <button onClick={() => deleteRecord("payments", p.id)} className={deleteBtn}>Delete</button>
                 </div>
               ))}
             </div>
