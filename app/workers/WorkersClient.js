@@ -23,11 +23,14 @@ export default function WorkersClient({ workers, userId }) {
       setError(data.error);
     } else {
       router.refresh();
-      setName("");
-      setPhone("");
-      setDailyRate("");
-      setShowForm(false);
+      setName(""); setPhone(""); setDailyRate(""); setShowForm(false);
     }
+  }
+
+  async function deleteWorker(id) {
+    if (!confirm("Delete this worker?")) return;
+    await fetch(`/api/workers/${id}`, { method: "DELETE" });
+    router.refresh();
   }
 
   const inputClass = "block w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-orange-500 mb-3";
@@ -41,7 +44,7 @@ export default function WorkersClient({ workers, userId }) {
         </div>
         <button onClick={() => router.push("/dashboard")}
           className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 rounded-lg text-sm font-medium transition-colors">
-          ← Dashboard
+          &larr; Dashboard
         </button>
       </nav>
 
@@ -62,7 +65,7 @@ export default function WorkersClient({ workers, userId }) {
               onChange={(e) => setName(e.target.value)} className={inputClass} />
             <input type="text" placeholder="Phone" value={phone}
               onChange={(e) => setPhone(e.target.value)} className={inputClass} />
-            <input type="number" placeholder="Daily Rate (₹)" value={dailyRate}
+            <input type="number" placeholder="Daily Rate" value={dailyRate}
               onChange={(e) => setDailyRate(e.target.value)} className={inputClass} />
             <div className="flex gap-3">
               <button onClick={handleAddWorker}
@@ -91,9 +94,15 @@ export default function WorkersClient({ workers, userId }) {
                 <p className="font-bold text-lg">{w.name}</p>
                 <p className="text-zinc-500 text-sm">{w.phone || "No phone"}</p>
               </div>
-              <div className="text-right">
-                <p className="text-zinc-500 text-xs uppercase tracking-wide mb-1">Daily Rate</p>
-                <p className="font-black text-orange-400 text-xl">₹{w.daily_rate.toLocaleString()}</p>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="text-zinc-500 text-xs uppercase tracking-wide mb-1">Daily Rate</p>
+                  <p className="font-black text-orange-400 text-xl">&#8377;{w.daily_rate.toLocaleString()}</p>
+                </div>
+                <button onClick={() => deleteWorker(w.id)}
+                  className="px-3 py-1 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded-lg text-xs font-bold transition-colors">
+                  Delete
+                </button>
               </div>
             </div>
           ))}
