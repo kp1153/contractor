@@ -1,19 +1,15 @@
+// proxy.js
+import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
-export function proxy(request) {
-  const session = request.cookies.get("session");
-  const isAuth = session?.value === "authenticated";
-  const isLoginPage = request.nextUrl.pathname === "/";
-
-  if (!isAuth && !isLoginPage) {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
-  if (isAuth && isLoginPage) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+export async function proxy(request) {
+  const session = await auth();
+  if (!session) {
+    return NextResponse.redirect(new URL("/login", request.url));
   }
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/((?!_next|favicon.ico|api).*)"],
+  matcher: ["/dashboard/:path*", "/sites/:path*", "/workers/:path*"],
 };
